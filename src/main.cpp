@@ -1,28 +1,26 @@
 #include <Geode/Geode.hpp>
-#include <Geode/modify/CCApplication.hpp>
+#include <Geode/modify/CCDirector.hpp>
+#include <chrono>
+#include <thread>
 
 using namespace geode::prelude;
 
-static void applyFPS() {
+static double targetInterval() {
 	auto fps = Mod::get()->getSettingValue<int64_t>("fps");
 	if (fps < 1) fps = 60;
-	CCDirector::get()->setAnimationInterval(1.0 / static_cast<double>(fps));
+	return 1.0 / static_cast<double>(fps);
 }
 
-class $modify(FPSApplication, CCApplication) {
-	void setAnimationInterval(double interval) {
-		auto fps = Mod::get()->getSettingValue<int64_t>("fps");
-		if (fps < 1) fps = 60;
-		CCApplication::setAnimationInterval(1.0 / static_cast<double>(fps));
+class $modify(FPSDirector, CCDirector) {
+	void drawScene() {
+		using clock = std::chrono::steady_clock;
+		static auto last = clock::now();
+		auto interval = std::chrono::duration<double>(targetInterval());
+		auto elapsed = clock::now() - last;
+		if (elapsed < interval) {
+			std::this_thread::sleep_for(interval - elapsed);
+		}
+		last = clock::now();
+		CCDirector::drawScene();
 	}
 };
-
-$execute {
-	listenForSettingChanges<int64_t>("fps", [](int64_t) {
-		applyFPS();
-	});
-}
-
-$on_mod(Loaded) {
-	applyFPS();
-}
